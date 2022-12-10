@@ -1,0 +1,539 @@
+# An Investigation into GPA Statistics  
+
+## Md Abyan Wahed, MAW5683
+
+## Introduction
+Dataset: https://vincentarelbundock.github.io/Rdatasets/doc/Stat2Data/FirstYearGPA.html
+
+My dataset, which I imported from the "interesting datasets" Google Docs spreadsheet provided on the project instructions, consisted of 11 variables and 219 observations. The variables are defined as follows:
+
+student - Unique ID for the observation
+
+GPA - Recorded GPA after freshman year of college (on 4.0 scale)
+
+HSGPA - High School GPA (on 4.0 scale)
+
+SATV - Reading SAT Score
+
+SATM - Math SAT Score
+
+Male - Gender (1 if Male, 0 if Female)
+
+HU - High school credit hours in humanities courses
+
+SS - High school credit hours in social sciences courses
+
+FirstGen - 1 if a first-generation student, 0 if not
+
+White - 1 if race of student is white, 0 if not
+
+CollegeBound - 1 if attended high school with majority planning to go to college, 0 if not
+
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(rpart)
+library(rpart.plot)
+library(caret)
+library(pROC)
+library(ROCR)
+library(randomForest)
+library(ggfortify)
+library(ggthemes)
+```
+Here, I import my dataset and give the first column a better variable name.
+```{r}
+gpa <- read_csv("~/Downloads/FirstYearGPA.csv")
+gpa_1 <- gpa %>% rename(student = ...1)
+```
+
+## Logistic Regression
+
+First, I want to predict whether a student is a first-generation student based on the other variables in the dataset.
+```{r}
+## Fitting model
+glm_gpa <- glm(formula = FirstGen ~ GPA + HSGPA + SATV + SATM + Male + HU + SS + White + CollegeBound,
+               family = binomial,
+               data = gpa_1)
+
+## Creating predicted class
+pred_gpa <- predict(glm_gpa, gpa_1, type = 'response')
+y_hat <- as.numeric(ifelse(pred_gpa > 0.5, "1", "0"))
+mean(y_hat == gpa_1$FirstGen)
+
+## Confusion Matrix, Specificity, Sensitivity
+actual <- gpa_1$FirstGen
+specificity(table(y_hat, actual))
+sensitivity(table(y_hat, actual))
+
+cM <- confusionMatrix(as.factor(y_hat), reference = as.factor(actual), positive = "1")
+confusionMatrix(table(y_hat, actual))
+
+## AUC
+df_1 <- data.frame(predictor = predict(glm_gpa, gpa_1, type = 'response'),
+                   truth = gpa_1$FirstGen)
+auc(truth ~ predictor, data = df_1)
+```
+The model resulted in an accuracy of around 89.95%, a sensitivity of around 99%, a specificity of 20%, and an area under the curve of 0.7977, which is overall lower than I thought considering I used every meaningful variable in the dataset as predictors. 
+
+## With Training and Test Sets
+
+```{r}
+## 1, Accuracy
+set.seed(11172)
+idx_train <- createDataPartition(gpa_1$FirstGen, p = 0.8)[[1]]
+gpa_train <- gpa_1[idx_train,]
+gpa_test <- gpa_1[-idx_train,]
+
+train_glm <- glm(FirstGen ~ GPA + HSGPA + SATV + SATM + HU + SS + White + CollegeBound,
+                 family = binomial,
+                 data = gpa_train)
+prob_test <- predict(train_glm, gpa_test, type = 'response')
+predicted_test <- as.numeric(ifelse(prob_test > 0.5, "1", "0"))
+mean(predicted_test == gpa_1$FirstGen)
+
+## Sensitivity, Specificity
+confusionMatrix(as.factor(predicted_test), reference = as.factor(gpa_test$FirstGen), positive = "1")
+
+## AUC
+df_2 <- data.frame(predictor = predict(train_glm, gpa_test, type = 'response'),
+                   truth = gpa_test$FirstGen)
+auc(truth ~ predictor, data = df_2)
+
+
+## 2, Accuracy
+set.seed(17294)
+idx_train <- createDataPartition(gpa_1$FirstGen, p = 0.8)[[1]]
+gpa_train <- gpa_1[idx_train,]
+gpa_test <- gpa_1[-idx_train,]
+
+train_glm <- glm(FirstGen ~ GPA + HSGPA + SATV + SATM + HU + SS + White + CollegeBound,
+                 family = binomial,
+                 data = gpa_train)
+prob_test <- predict(train_glm, gpa_test, type = 'response')
+predicted_test <- as.numeric(ifelse(prob_test > 0.5, "1", "0"))
+mean(predicted_test == gpa_1$FirstGen)
+
+## Sensitivity, Specificity
+confusionMatrix(as.factor(predicted_test), reference = as.factor(gpa_test$FirstGen), positive = "1")
+
+## AUC
+df_3 <- data.frame(predictor = predict(train_glm, gpa_test, type = 'response'),
+                   truth = gpa_test$FirstGen)
+auc(truth ~ predictor, data = df_3)
+
+## 3, Accuracy
+set.seed(837)
+idx_train <- createDataPartition(gpa_1$FirstGen, p = 0.8)[[1]]
+gpa_train <- gpa_1[idx_train,]
+gpa_test <- gpa_1[-idx_train,]
+
+train_glm <- glm(FirstGen ~ GPA + HSGPA + SATV + SATM + HU + SS + White + CollegeBound,
+                 family = binomial,
+                 data = gpa_train)
+prob_test <- predict(train_glm, gpa_test, type = 'response')
+predicted_test <- as.numeric(ifelse(prob_test > 0.5, "1", "0"))
+mean(predicted_test == gpa_1$FirstGen)
+
+## Sensitivity, Specificity
+confusionMatrix(as.factor(predicted_test), reference = as.factor(gpa_test$FirstGen), positive = "1")
+
+## AUC
+df_4 <- data.frame(predictor = predict(train_glm, gpa_test, type = 'response'),
+                   truth = gpa_test$FirstGen)
+auc(truth ~ predictor, data = df_4)
+
+## 4, Accuracy
+set.seed(12)
+idx_train <- createDataPartition(gpa_1$FirstGen, p = 0.8)[[1]]
+gpa_train <- gpa_1[idx_train,]
+gpa_test <- gpa_1[-idx_train,]
+
+train_glm <- glm(FirstGen ~ GPA + HSGPA + SATV + SATM + HU + SS + White + CollegeBound,
+                 family = binomial,
+                 data = gpa_train)
+prob_test <- predict(train_glm, gpa_test, type = 'response')
+predicted_test <- as.numeric(ifelse(prob_test > 0.5, "1", "0"))
+mean(predicted_test == gpa_1$FirstGen)
+
+## Sensitivity, Specificity
+confusionMatrix(as.factor(predicted_test), reference = as.factor(gpa_test$FirstGen), positive = "1")
+
+## AUC
+df_5 <- data.frame(predictor = predict(train_glm, gpa_test, type = 'response'),
+                   truth = gpa_test$FirstGen)
+auc(truth ~ predictor, data = df_5)
+
+## 5, Accuracy
+set.seed(2348729)
+idx_train <- createDataPartition(gpa_1$FirstGen, p = 0.8)[[1]]
+gpa_train <- gpa_1[idx_train,]
+gpa_test <- gpa_1[-idx_train,]
+
+train_glm <- glm(FirstGen ~ GPA + HSGPA + SATV + SATM + HU + SS + White + CollegeBound,
+                 family = binomial,
+                 data = gpa_train)
+prob_test <- predict(train_glm, gpa_test, type = 'response')
+predicted_test <- as.numeric(ifelse(prob_test > 0.5, "1", "0"))
+mean(predicted_test == gpa_1$FirstGen)
+
+## Sensitivity, Specificity
+confusionMatrix(as.factor(predicted_test), reference = as.factor(gpa_test$FirstGen), positive = "1")
+
+## AUC
+df_6 <- data.frame(predictor = predict(train_glm, gpa_test, type = 'response'),
+                   truth = gpa_test$FirstGen)
+auc(truth ~ predictor, data = df_6)
+```
+Using the training/testing splits, we see that the accuracies (0.849, 0.872, 0.863, 0.886, and 0.845) are lower than without the split, which means that these models are overfitting. This suggests that the model is generalizing trends in the training set which led to a worse performance on the test set.
+
+
+## Tree-Based Classifiers
+
+Now, I use rpart and randomForest. 
+```{r}
+## rpart
+gpa_2 <- gpa_1 %>% dplyr::select(-student)
+fitted_cart <- rpart(FirstGen ~.,
+                     data = gpa_2)
+rpart.plot(fitted_cart)
+
+## Accuracy
+pred_cart <- predict(fitted_cart, gpa_2)
+y_hat <- as.numeric(ifelse(pred_cart > 0.5, "1", "0"))
+mean(y_hat == gpa_2$FirstGen)
+
+## Sensitivity, specificity
+confusionMatrix(as.factor(y_hat), as.factor(gpa_2$FirstGen), positive = "1")
+
+## AUC
+df_7 <- data.frame(predictor = predict(fitted_cart, gpa_2),
+                   truth = gpa_2$FirstGen)
+auc(truth ~ predictor, data = df_7)
+```
+The rpart model resulted in an accuracy of 90.87%, a sensitivity of 24%, a specificity of 99.49%, and an area under the curve of 0.8959.
+
+```{r}
+## randomForest
+gpa_2$FirstGen <- as.factor(gpa_2$FirstGen)
+gpa_rf <- randomForest(FirstGen ~.,
+                       data = gpa_2)
+
+## Accuracy
+pred_rf <- predict(gpa_rf, gpa_2)
+mean(pred_rf == gpa_2$FirstGen)
+
+## Sensitivity, specificity
+confusionMatrix(as.factor(pred_rf), as.factor(gpa_2$FirstGen), positive = "1")
+
+## AUC
+rf_p_gpa <- predict(gpa_rf, type = "prob", gpa_2)[,2]
+rf_pr_gpa <- prediction(rf_p_gpa, gpa_2$FirstGen)
+rf_auc <- performance(rf_pr_gpa, measure = "auc")@y.values[[1]]
+rf_auc
+```
+The randomForest model produced an accuracy of 100%.
+
+## Training and Testing Sets
+
+Here, I apply training and testing sets to the rpart model.
+```{r}
+##rpart - 1
+set.seed(11172)
+idx_train <- createDataPartition(gpa_2$FirstGen, p = 0.8)[[1]]
+gpa_train <- gpa_2[idx_train,]
+gpa_test <- gpa_2[-idx_train,]
+
+train_cart <- rpart(FirstGen ~. ,
+                    data = gpa_train)
+pred_train <- predict(train_cart, gpa_test)
+y_hat <- as.numeric(ifelse(pred_train[,2] > 0.5, "1", "0"))
+mean(y_hat == gpa_2$FirstGen)
+
+## Sensitivity, specificity
+confusionMatrix(as.factor(y_hat), as.factor(gpa_test$FirstGen), positive = "1")
+
+## AUC
+auc(gpa_test$FirstGen, y_hat)
+
+## 2
+set.seed(17294)
+idx_train <- createDataPartition(gpa_2$FirstGen, p = 0.8)[[1]]
+gpa_train <- gpa_2[idx_train,]
+gpa_test <- gpa_2[-idx_train,]
+
+train_cart <- rpart(FirstGen ~. ,
+                    data = gpa_train)
+pred_train <- predict(train_cart, gpa_test)
+y_hat <- as.numeric(ifelse(pred_train[,2] > 0.5, "1", "0"))
+mean(y_hat == gpa_2$FirstGen)
+
+## Sensitivity, specificity
+confusionMatrix(as.factor(y_hat), as.factor(gpa_test$FirstGen), positive = "1")
+
+## AUC
+auc(gpa_test$FirstGen, y_hat)
+
+## 3
+set.seed(837)
+idx_train <- createDataPartition(gpa_2$FirstGen, p = 0.8)[[1]]
+gpa_train <- gpa_2[idx_train,]
+gpa_test <- gpa_2[-idx_train,]
+
+train_cart <- rpart(FirstGen ~. ,
+                    data = gpa_train)
+pred_train <- predict(train_cart, gpa_test)
+y_hat <- as.numeric(ifelse(pred_train[,2] > 0.5, "1", "0"))
+mean(y_hat == gpa_2$FirstGen)
+
+## Sensitivity, specificity
+confusionMatrix(as.factor(y_hat), as.factor(gpa_test$FirstGen), positive = "1")
+
+## AUC
+auc(gpa_test$FirstGen, y_hat)
+
+## 4
+set.seed(12)
+idx_train <- createDataPartition(gpa_2$FirstGen, p = 0.8)[[1]]
+gpa_train <- gpa_2[idx_train,]
+gpa_test <- gpa_2[-idx_train,]
+
+train_cart <- rpart(FirstGen ~. ,
+                    data = gpa_train)
+pred_train <- predict(train_cart, gpa_test)
+y_hat <- as.numeric(ifelse(pred_train[,2] > 0.5, "1", "0"))
+mean(y_hat == gpa_2$FirstGen)
+
+## Sensitivity, specificity
+confusionMatrix(as.factor(y_hat), as.factor(gpa_test$FirstGen), positive = "1")
+
+## AUC
+auc(gpa_test$FirstGen, y_hat)
+
+## 5
+set.seed(2348729)
+idx_train <- createDataPartition(gpa_2$FirstGen, p = 0.8)[[1]]
+gpa_train <- gpa_2[idx_train,]
+gpa_test <- gpa_2[-idx_train,]
+
+train_cart <- rpart(FirstGen ~. ,
+                    data = gpa_train)
+pred_train <- predict(train_cart, gpa_test)
+y_hat <- as.numeric(ifelse(pred_train[,2] > 0.5, "1", "0"))
+mean(y_hat == gpa_2$FirstGen)
+
+## Sensitivity, specificity
+confusionMatrix(as.factor(y_hat), as.factor(gpa_test$FirstGen), positive = "1")
+
+## AUC
+auc(gpa_test$FirstGen, y_hat)
+```
+
+Then, I repeat the process with the randomForest model.
+```{r}
+## randomForest - 1
+set.seed(11172)
+idx_train <- createDataPartition(gpa_2$FirstGen, p = 0.8)[[1]]
+gpa_train <- gpa_2[idx_train,]
+gpa_test <- gpa_2[-idx_train,]
+
+train_rf <- randomForest(FirstGen ~.,
+                       data = gpa_train)
+
+## Accuracy
+pred_rf <- predict(train_rf, gpa_test)
+mean(pred_rf == gpa_2$FirstGen)
+
+## Sensitivity, specificity
+confusionMatrix(as.factor(pred_rf), as.factor(gpa_test$FirstGen), positive = "1")
+
+## AUC
+rf_p_gpa <- predict(gpa_rf, type = "prob", gpa_test)[,2]
+rf_pr_gpa <- prediction(rf_p_gpa, gpa_test$FirstGen)
+rf_auc <- performance(rf_pr_gpa, measure = "auc")@y.values[[1]]
+rf_auc
+
+## randomForest - 2
+set.seed(17294)
+idx_train <- createDataPartition(gpa_2$FirstGen, p = 0.8)[[1]]
+gpa_train <- gpa_2[idx_train,]
+gpa_test <- gpa_2[-idx_train,]
+
+train_rf <- randomForest(FirstGen ~.,
+                       data = gpa_train)
+
+## Accuracy
+pred_rf <- predict(train_rf, gpa_test)
+mean(pred_rf == gpa_2$FirstGen)
+
+## Sensitivity, specificity
+confusionMatrix(as.factor(pred_rf), as.factor(gpa_test$FirstGen), positive = "1")
+
+## AUC
+rf_p_gpa <- predict(gpa_rf, type = "prob", gpa_test)[,2]
+rf_pr_gpa <- prediction(rf_p_gpa, gpa_test$FirstGen)
+rf_auc <- performance(rf_pr_gpa, measure = "auc")@y.values[[1]]
+rf_auc
+
+## randomForest - 3
+set.seed(837)
+idx_train <- createDataPartition(gpa_2$FirstGen, p = 0.8)[[1]]
+gpa_train <- gpa_2[idx_train,]
+gpa_test <- gpa_2[-idx_train,]
+
+train_rf <- randomForest(FirstGen ~.,
+                       data = gpa_train)
+
+## Accuracy
+pred_rf <- predict(train_rf, gpa_test)
+mean(pred_rf == gpa_2$FirstGen)
+
+## Sensitivity, specificity
+confusionMatrix(as.factor(pred_rf), as.factor(gpa_test$FirstGen), positive = "1")
+
+## AUC
+rf_p_gpa <- predict(gpa_rf, type = "prob", gpa_test)[,2]
+rf_pr_gpa <- prediction(rf_p_gpa, gpa_test$FirstGen)
+rf_auc <- performance(rf_pr_gpa, measure = "auc")@y.values[[1]]
+rf_auc
+
+## randomForest - 4
+set.seed(12)
+idx_train <- createDataPartition(gpa_2$FirstGen, p = 0.8)[[1]]
+gpa_train <- gpa_2[idx_train,]
+gpa_test <- gpa_2[-idx_train,]
+
+train_rf <- randomForest(FirstGen ~.,
+                       data = gpa_train)
+
+## Accuracy
+pred_rf <- predict(train_rf, gpa_test)
+mean(pred_rf == gpa_2$FirstGen)
+
+## Sensitivity, specificity
+confusionMatrix(as.factor(pred_rf), as.factor(gpa_test$FirstGen), positive = "1")
+
+## AUC
+rf_p_gpa <- predict(gpa_rf, type = "prob", gpa_test)[,2]
+rf_pr_gpa <- prediction(rf_p_gpa, gpa_test$FirstGen)
+rf_auc <- performance(rf_pr_gpa, measure = "auc")@y.values[[1]]
+rf_auc
+
+## randomForest - 5
+set.seed(2348729)
+idx_train <- createDataPartition(gpa_2$FirstGen, p = 0.8)[[1]]
+gpa_train <- gpa_2[idx_train,]
+gpa_test <- gpa_2[-idx_train,]
+
+train_rf <- randomForest(FirstGen ~.,
+                       data = gpa_train)
+
+## Accuracy
+pred_rf <- predict(train_rf, gpa_test)
+mean(pred_rf == gpa_2$FirstGen)
+
+## Sensitivity, specificity
+confusionMatrix(as.factor(pred_rf), as.factor(gpa_test$FirstGen), positive = "1")
+
+## AUC
+rf_p_gpa <- predict(gpa_rf, type = "prob", gpa_test)[,2]
+rf_pr_gpa <- prediction(rf_p_gpa, gpa_test$FirstGen)
+rf_auc <- performance(rf_pr_gpa, measure = "auc")@y.values[[1]]
+rf_auc
+```
+The rpart model showed signs of overfitting when adding training and testing sets as the accuracy seemed to decrease. The same can be said about the randomForest model when adding training/test splits.
+
+On average, the logistic regression model performed better with a mean average of a little over 86%, whereas the tree-based classifiers resulted in a mean average of around 85.66%.
+
+## Caret
+
+I attempt to find the best possible value of 'cp' using cross-validation.
+```{r}
+tune_grid <- data.frame(cp = seq(from = 0, to = 0.05, by = 0.002))
+colnames(gpa_2) <- make.names(colnames(gpa_2))
+
+trained_rpart <- train(
+  FirstGen ~ ., 
+  data = gpa_2, 
+  method = 'rpart', 
+  tuneGrid = tune_grid,
+  control = rpart.control(minsplit = 20)
+)
+
+ggplot(trained_rpart, highlight = TRUE)
+
+optimal_cart <- rpart(FirstGen ~. ,
+      data = gpa_2,
+      control = rpart.control(cp = 0.05))
+
+rpart.plot(optimal_cart)
+```
+To my understanding, this tree first determines whether the student has more than 6.4 humanities credits. If so, they are predicted not to be a first-generation student (which is 82% of the data). If not, the tree then determines whether their Math SAT score was above 575. If it is above, then the tree predicts the student not to be a first-generation student. If below a 575 math score and less than 6.4 humanities credits, the student is predicted to be a first-generation student, which is 3% of the data. 
+
+## Linear Regression
+
+```{r}
+## Linear model
+gpa_lm <- lm(GPA ~ HSGPA + SATV + SATM,
+             data = gpa_2)
+summary(gpa_lm)
+
+## RMSE
+pred_lm <- round((predict(gpa_lm, gpa_2)), digits = 2)
+sqrt(mean((gpa_2$GPA - pred_lm)^2))
+
+## k-fold cross validation
+set.seed(229)
+train_control <- trainControl(method = "repeatedcv", number = 20, repeats = 5)
+cv_lm <- train(GPA ~ HSGPA + SATV + SATM,
+               data = gpa_2,
+               method = "lm",
+               trControl = train_control)
+print(cv_lm$results)
+
+## cv using randomForest
+possible_cps <- data.frame(cp = seq(from = 0.001, to = 0.05, length = 20))
+set.seed(229)
+cv_cart <- train(GPA ~ HSGPA + SATV + SATM,
+                 data = gpa_2,
+                 method = "rpart",
+                 tuneGrid = possible_cps,
+                 trControl = train_control)
+cv_cart$results %>% slice_min(RMSE)
+```
+The RMSE for the linear model is 0.4027. Using k-fold cross validation, the calculated RMSE was 0.4021.
+
+The minimum RMSE for the rpart model using cross-validation was 0.4333 with the optimal 'cp' being 0.0216.
+
+The k-fold cross-validation method seemed to improve the RMSE for the linear model very slightly. However, the minimum RMSE for the rpart model is higher than the RMSE for the linear model without cross-validation, which tells us that the linear model is performing better than the rpart model. 
+
+## Unsupervised Learning: PCA
+
+```{r}
+gpa_3 <- gpa_1 %>% dplyr::select(-student, -Male, -White, -FirstGen, -CollegeBound)
+pca <- gpa_3 %>% scale() %>% prcomp()
+pca
+
+pca_data <- data.frame(pca$x, FirstGen = gpa_2$FirstGen)
+head(pca_data)
+
+ggplot(pca_data, aes(x = PC1, y = PC2, color = FirstGen)) + 
+  geom_point()
+
+## autoplot
+autoplot(pca, loadings = TRUE, loadings.label = TRUE,
+         data = gpa_2 , color = 'FirstGen')
+
+## percentage of variance
+percent <- 100 * pca$sdev^2 / sum(pca$sdev^2)
+percent
+
+var_data <- data.frame(percent = percent, PC = 1:length(percent))
+ggplot(var_data, aes(x = PC, y = percent)) + 
+  geom_col()
+```
+Using the autoplot, it seems that SAT scores and both GPAs greatly impact the first principal component, whereas social sciences credits and humanities credits moderately impacts the first principal component. Furthermore, it seems that social studies and humanities credits greatly impact the second principal component, whereas SAT scores moderately impact the second PC and GPAs barely impact the second PC.
+
+Lastly, the PCs that I retained captured 100% of the variance in the data.
